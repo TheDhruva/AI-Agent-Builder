@@ -4,7 +4,7 @@ import AiAgentsTab from './_components/AiAgentsTab'
 
 function Dashboard() {
   return (
-    <div>
+    <div className='flex-vertical '>
       <CreateAgentSection />
       <AiAgentsTab />
     </div>

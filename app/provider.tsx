@@ -1,35 +1,46 @@
-"use client"; // 1. Must be at the very top
+"use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useMutation } from "convex/react"; // 2. Correct import for Convex
-import { api } from "@/convex/_generated/api"; // 3. Ensure this path points to your API
-import { User } from "lucide-react";
-import { UserDetailContext } from "@/context/UserDetailContext";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { UserDetailContext, UserDetail } from "@/context/UserDetailContext";
 
 function Provider({ children }: { children: React.ReactNode }) {
-    const { user } = useUser();
-    const createUser = useMutation(api.user.CreateNewUser);
-    const [userDetail,setUserDetail] = useState;
-    useEffect(() => {
-        if (user) {
-            checkUser();
-        }
-    }, [user]);
+    const { user, isLoaded } = useUser();
+    
+    // 1. Immediate Query: Convex will fetch this much faster than a mutation
+    const userData = useQuery(api.users.GetUserByEmail, {
+        email: user?.primaryEmailAddress?.emailAddress ?? ""
+    });
 
-    const checkUser = async () => { // 4. Function must be async to use 'await'
-        // 5. Fixed the syntax error (?? ||) and closed the string
-        const result = await createUser({
-            name: user?.fullName ?? user?.firstName ?? "No Name",
-            email: user?.primaryEmailAddress?.emailAddress ?? "no-email@example.com",
-        });
-        
-        console.log("User synced:", result);
-    };
+    const createUser = useMutation(api.users.CreateNewUser);
+    const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+
+    // 2. Sync logic: Only runs if Clerk is ready but Convex doesn't have the user
+    useEffect(() => {
+        if (userData) {
+            setUserDetail(userData as UserDetail);
+        } else if (isLoaded && user && userData === null) {
+            // User doesn't exist in DB, create them in the background
+            const sync = async () => {
+                const result = await createUser({
+                    name: user.fullName ?? "User",
+                    email: user.primaryEmailAddress?.emailAddress ?? "",
+                });
+                setUserDetail(result as UserDetail);
+            };
+            sync();
+        }
+    }, [isLoaded, user, userData, createUser]);
+
+    // 3. ZERO GATE: The only gate is Clerk's initialization. 
+    // The rest of the app renders immediately.
+    if (!isLoaded) return null;
 
     return (
-        <UserDetailContext.Provider value={{userDetail,setUserDetail}}>
-            <div>{children}</div>
+        <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
+            {children}
         </UserDetailContext.Provider>
     );
 }
