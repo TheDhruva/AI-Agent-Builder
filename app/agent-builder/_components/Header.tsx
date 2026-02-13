@@ -3,7 +3,12 @@ import { ChevronLeft, Play, Rocket, Code } from 'lucide-react'
 import React from 'react'
 import { useRouter } from 'next/navigation'
 
-function Header() {
+type Props={
+    agentDetail: Agent
+}
+
+
+function Header({ agentDetail }: Props) {
   const router = useRouter();
 
   return (
@@ -18,7 +23,7 @@ function Header() {
             >
                 <ChevronLeft className="h-6 w-6" />
             </Button>
-            <h2 className="text-xl font-bold tracking-tight">Agent Builder</h2>
+            <h2 className="text-xl font-bold tracking-tight">{agentDetail?.agentName || 'Agent Builder'}</h2>
         </div>
 
         {/* Right Section: Actions */}

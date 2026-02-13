@@ -5,24 +5,40 @@ import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { UserDetailContext, UserDetail } from "@/context/UserDetailContext";
+import { WorkflowContext } from "@/context/WorkflowContext";
+// Fix 1: Import ReactFlowProvider, Node, and Edge types
+import { ReactFlowProvider, Node, Edge } from "@xyflow/react"; 
+
+const initialNodes: Node[] = [
+  {
+    id: 'start-0',
+    type: 'startNode',
+    position: { x: 250, y: 100 },
+    data: { label: 'Start' },
+  },
+];
 
 function Provider({ children }: { children: React.ReactNode }) {
     const { user, isLoaded } = useUser();
+    const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
     
-    // 1. Immediate Query: Convex will fetch this much faster than a mutation
+    // Fix 2: Standardized naming (selectedNode) and typed it
+    const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+    
+    // Workflow State
+    const [nodes, setNodes] = useState<Node[]>(initialNodes);
+    const [edges, setEdges] = useState<Edge[]>([]);
+
     const userData = useQuery(api.users.GetUserByEmail, {
         email: user?.primaryEmailAddress?.emailAddress ?? ""
     });
 
     const createUser = useMutation(api.users.CreateNewUser);
-    const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
 
-    // 2. Sync logic: Only runs if Clerk is ready but Convex doesn't have the user
     useEffect(() => {
         if (userData) {
             setUserDetail(userData as UserDetail);
         } else if (isLoaded && user && userData === null) {
-            // User doesn't exist in DB, create them in the background
             const sync = async () => {
                 const result = await createUser({
                     name: user.fullName ?? "User",
@@ -34,13 +50,23 @@ function Provider({ children }: { children: React.ReactNode }) {
         }
     }, [isLoaded, user, userData, createUser]);
 
-    // 3. ZERO GATE: The only gate is Clerk's initialization. 
-    // The rest of the app renders immediately.
     if (!isLoaded) return null;
 
     return (
         <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
-            {children}
+            <ReactFlowProvider>
+                {/* Fix 3: Added selectedNode/setSelectedNode to context value */}
+                <WorkflowContext.Provider value={{ 
+                    nodes, 
+                    setNodes, 
+                    edges, 
+                    setEdges,
+                    selectedNode,
+                    setSelectedNode 
+                }}>
+                    {children}
+                </WorkflowContext.Provider>
+            </ReactFlowProvider>
         </UserDetailContext.Provider>
     );
 }
