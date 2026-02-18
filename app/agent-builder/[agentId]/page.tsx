@@ -1,7 +1,7 @@
 "use client"
-import React, { useCallback, useContext, useEffect } from 'react'
+import React, { useCallback, useContext, useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation';
-import { useQuery, useMutation } from "convex/react"; // FIXED: Added useMutation
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
   ReactFlow, 
@@ -37,7 +37,7 @@ import UserApprovalNode from '../_customNodes/UserApprovalNode';
 import ApiNode from '../_customNodes/ApiNode';
 import SettingsPanel from '../_components/SettingsPanel';
 
-const nodeTypes = {
+export const nodeTypes = {
   startNode: StartNodes, 
   agentNode: AgentNode,
   endNode: EndNode,
@@ -60,33 +60,45 @@ function SelectionHandler() {
 function AgentBuilderContent() {
   const params = useParams();
   const agentId = params?.agentId as string;
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const { nodes, setNodes, edges, setEdges } = useContext(WorkflowContext);
   
-  // Data Fetching and Mutations
   const agentDetail = useQuery(api.agents.GetAgentById, { agentId });
-  const updateAgent = useMutation(api.agents.UpdateAgentDetail); // FIXED: Initialize mutation
+  const updateAgent = useMutation(api.agents.UpdateAgentDetail);
 
+  // 1. Initial Load from DB
   useEffect(() => {
-    if (agentDetail) {
+    if (agentDetail && !isLoaded) {
       setNodes(agentDetail.nodes || []);
       setEdges(agentDetail.edges || []);
+      setIsLoaded(true);
     }
-  }, [agentDetail, setNodes, setEdges]);
+  }, [agentDetail, isLoaded, setNodes, setEdges]);
 
-  // FIXED: Corrected syntax and implemented mutation call
+  // 2. AUTO-SAVE LOGIC: Syncs to DB whenever nodes or edges change
+  useEffect(() => {
+    if (!isLoaded || !agentDetail?._id) return;
+
+    // Debounce: Wait 1 second after the last change before saving
+    const delayDebounceFn = setTimeout(() => {
+      SaveNodesAndEdges();
+    }, 1000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [nodes, edges, isLoaded]);
+
   const SaveNodesAndEdges = async () => {
     if (!agentDetail?._id) return;
-    
     try {
-      const result = await updateAgent({
+      await updateAgent({
         id: agentDetail._id,
         nodes: nodes,
         edges: edges,
       });
-      console.log('Saved to DB:', result);
+      console.log('Auto-saved to database');
     } catch (error) {
-      console.error('Failed to save:', error);
+      console.error('Auto-save failed:', error);
     }
   };
 
@@ -105,11 +117,10 @@ function AgentBuilderContent() {
     [setEdges]
   );
 
-  if (!agentDetail) return <div>Loading...</div>;
+  if (!agentDetail) return <div className="h-screen flex items-center justify-center">Loading Workflow...</div>;
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50">
-      {/* Pass save function to Header for the Save Button */}
       <Header agentDetail={agentDetail} onSave={SaveNodesAndEdges} />
       
       <div className="grow w-full relative">
@@ -131,10 +142,8 @@ function AgentBuilderContent() {
              <AgentToolsPanel />
           </Panel>
 
-          <Panel position="top-right" className="flex flex-col gap-2 mt-4 mr-4">
-            <div className="h-full">
+          <Panel position="top-right" className="mt-4 mr-4">
                <SettingsPanel />
-            </div>
           </Panel>
         </ReactFlow>
       </div>
