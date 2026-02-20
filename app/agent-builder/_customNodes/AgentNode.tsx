@@ -25,7 +25,7 @@ function AgentNode({ data }: NodeProps) {
       <div className="flex flex-col text-left">
         <span className="text-[10px] uppercase tracking-tighter font-bold text-slate-400">Processor</span>
         {/* Uses data.label so the name matches what you dragged from the sidebar */}
-        <h2 className="text-sm font-semibold text-slate-700">{data.label || 'AI Agent'}</h2>
+        <h2 className="text-sm font-semibold text-slate-700">{typeof data.label === 'string' ? data.label : 'AI Agent'}</h2>
       </div>
 
       {/* Output Handle - Fixed typo (was FHandle) */}
