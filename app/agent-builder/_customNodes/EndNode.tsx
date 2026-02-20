@@ -25,7 +25,7 @@ function EndNode({ data }: EndNodeProps) {
           type="target"
           position={Position.Left} // or just "left"
           className="-left-3 bg-red-500 w-3 h-3 border-2 border-white hover:!w-4 hover:!h-4 transition-all"
-          style={{ backgroundColor: data?.bg }} 
+          style={{ backgroundColor: typeof data?.bg === 'string' ? data.bg : undefined }} 
         />
       </div>
     </div>

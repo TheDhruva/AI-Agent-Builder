@@ -13,7 +13,7 @@ function ApiNode({data}: any) {
     <div className="relative bg-white border rounded-md p-2 shadow-sm min-w-[150px]">
       
       <div className="flex gap-2 items-center mb-2">
-        <div className="p-1 rounded-md" style={{ backgroundColor: data?.bg }}>
+        <div className="p-1 rounded-md" style={{ backgroundColor: typeof data?.bg === 'string' ? data.bg : undefined }}>
            <Globe className="w-4 h-4" />
         </div>
         <h2 className="font-bold text-sm">API Call</h2>

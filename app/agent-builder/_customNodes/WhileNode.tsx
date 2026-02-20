@@ -8,7 +8,7 @@ function WhileNode({ data }: NodeProps) {
     <div className="bg-white border rounded-md p-2 shadow-sm relative">
       
       {/* Header */}
-      <div className="flex gap-2 items-center mb-2" style={{ backgroundColor: data?.bg }}>
+      <div className="flex gap-2 items-center mb-2" style={{ backgroundColor: typeof data?.bg === 'string' ? data.bg : undefined }}>
         <Repeat className="w-4 h-4" />
         <h2 className="font-bold text-sm">While Loop</h2> {/* Fixed Label */}
       </div>

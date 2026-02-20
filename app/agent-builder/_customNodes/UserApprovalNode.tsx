@@ -8,7 +8,7 @@ function UserApprovalNode({ data }: NodeProps) {
     <div className="bg-white border rounded-md p-2 shadow-sm relative max-w-[180px]">
       
       {/* Header */}
-      <div className="flex gap-2 items-center mb-4" style={{ backgroundColor: data?.bg }}>
+      <div className="flex gap-2 items-center mb-4" style={{ backgroundColor: typeof data?.bg === 'string' ? data.bg : undefined }}>
         <ThumbsUp className="w-4 h-4 text-amber-600" />
         <h2 className="font-bold text-sm">Approval</h2>
       </div>
