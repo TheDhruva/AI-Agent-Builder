@@ -39,7 +39,8 @@ import UserApprovalNode from '../_customNodes/UserApprovalNode';
 import ApiNode from '../_customNodes/ApiNode';
 import SettingsPanel from '../_components/SettingsPanel';
 
-export const nodeTypes = {
+// FIXED: Removed 'export' keyword to prevent Next.js build failure
+const nodeTypes = {
   startNode: StartNodes, 
   agentNode: AgentNode,
   endNode: EndNode,
@@ -63,14 +64,14 @@ function AgentBuilderContent() {
   const params = useParams();
   const agentId = params?.agentId as string;
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Feedback state
+  const [isSaving, setIsSaving] = useState(false);
 
   const { nodes, setNodes, edges, setEdges } = useContext(WorkflowContext);
   
   const agentDetail = useQuery(api.agents.GetAgentById, { agentId });
   const updateAgent = useMutation(api.agents.UpdateAgentDetail);
 
-  // 1. Initial Load: Only syncs once when data arrives
+  // 1. Initial Load: Strict "Run Once" logic
   useEffect(() => {
     if (agentDetail && !isLoaded) {
       if (agentDetail.nodes) setNodes(agentDetail.nodes);
@@ -79,13 +80,13 @@ function AgentBuilderContent() {
     }
   }, [agentDetail, isLoaded, setNodes, setEdges]);
 
-  // 2. Optimized Auto-Save Logic
+  // 2. Debounced Auto-Save
   useEffect(() => {
     if (!isLoaded || !agentDetail?._id) return;
 
     const delayDebounceFn = setTimeout(() => {
       SaveNodesAndEdges();
-    }, 1500); // 1.5s is the sweet spot for workflow builders
+    }, 1500); 
 
     return () => clearTimeout(delayDebounceFn);
   }, [nodes, edges, isLoaded]);
@@ -102,7 +103,6 @@ function AgentBuilderContent() {
     } catch (error) {
       console.error('Auto-save failed:', error);
     } finally {
-      // Small delay for UI smoothness so the "Saved" icon doesn't flicker
       setTimeout(() => setIsSaving(false), 500);
     }
   };
@@ -122,14 +122,13 @@ function AgentBuilderContent() {
     [setEdges]
   );
 
-
   const { openDialog: openPublishDialog, dialog: publishDialog } = usePublishDialog();
 
   if (!agentDetail) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <p className="text-slate-500 font-medium">Mounting Canvas...</p>
+        <p className="text-slate-500 font-medium text-sm">Mounting Workspace...</p>
       </div>
     );
   }
@@ -140,10 +139,9 @@ function AgentBuilderContent() {
         agentDetail={agentDetail} 
         onSave={SaveNodesAndEdges} 
         isAutoSaving={isSaving}
-        // Add a Publish button in builder mode
         rightExtra={
           <button
-            className="ml-2 px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700"
+            className="ml-2 px-4 py-1.5 rounded-md bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-colors shadow-sm"
             onClick={openPublishDialog}
           >
             Publish
@@ -151,6 +149,7 @@ function AgentBuilderContent() {
         }
       />
       {publishDialog}
+      
       <div className="grow w-full relative">
         <ReactFlow
           nodes={nodes}
@@ -160,17 +159,18 @@ function AgentBuilderContent() {
           onConnect={onConnect}
           nodeTypes={nodeTypes}
           fitView
-          // Snap to grid for cleaner UI
           snapToGrid={true}
           snapGrid={[20, 20]}
         >
           <SelectionHandler />
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#cbd5e1" />
           <Controls />
-          <MiniMap nodeStrokeWidth={3} />
+          <MiniMap nodeStrokeWidth={3} zoomable pannable />
+          
           <Panel position="top-left" className="h-[80%] mt-4">
              <AgentToolsPanel />
           </Panel>
+          
           <Panel position="top-right" className="mt-4 mr-4">
                <SettingsPanel />
           </Panel>
@@ -180,12 +180,11 @@ function AgentBuilderContent() {
   );
 }
 
-function AgentBuilder() {
+// Final Default Export
+export default function AgentBuilder() {
   return (
     <ReactFlowProvider>
       <AgentBuilderContent />
     </ReactFlowProvider>
   );
 }
-
-export default AgentBuilder;
