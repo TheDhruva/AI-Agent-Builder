@@ -6,9 +6,7 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels"
 
 import { cn } from "@/lib/utils"
 
-  className,
-  ...props
-}: React.ComponentProps<typeof PanelGroup>) {
+function ResizablePanelGroup({ className, ...props }: React.ComponentProps<typeof PanelGroup>) {
   return (
     <PanelGroup
       data-slot="resizable-panel-group"
@@ -18,20 +16,16 @@ import { cn } from "@/lib/utils"
       )}
       {...props}
     />
-  )
+  );
+}
 }
 
-  ...props
-}: React.ComponentProps<typeof Panel>) {
-  return <Panel data-slot="resizable-panel" {...props} />
+function ResizablePanel({ ...props }: React.ComponentProps<typeof Panel>) {
+  return <Panel data-slot="resizable-panel" {...props} />;
+}
 }
 
-  withHandle,
-  className,
-  ...props
-}: React.ComponentProps<typeof PanelResizeHandle> & {
-  withHandle?: boolean
-}) {
+function ResizableHandle({ withHandle, className, ...props }: React.ComponentProps<typeof PanelResizeHandle> & { withHandle?: boolean }) {
   return (
     <PanelResizeHandle
       data-slot="resizable-handle"
@@ -47,7 +41,8 @@ import { cn } from "@/lib/utils"
         </div>
       )}
     </PanelResizeHandle>
-  )
+  );
+}
 }
 
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
