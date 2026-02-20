@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         let conversationId = null;
         
         // Ensure you pass userId from the client to track who is talking
-        const conversationRecord = await fetchQuery(api.conversations.GetConversation, {
+        const conversationRecord = await fetchQuery(api.conversation.GetConversationById, {
             agentId: agentDetail._id,
             userId: userId || "anonymous" 
         });
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
             conversationId = newConversation.id;
 
             // CRITICAL: Save it back to Convex
-            await fetchMutation(api.conversations.CreateConversation, {
+            await fetchMutation(api.conversation.CreateConversation, {
                 agentId: agentDetail._id,
                 userId: userId || "anonymous",
                 conversationId: conversationId
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ 
             success: true,
             conversationId: conversationId,
-            output: result.content 
+            output: result.output ?? result.content ?? result 
         }, { status: 200 });
 
     } catch (error: any) {

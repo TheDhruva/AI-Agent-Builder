@@ -54,7 +54,7 @@ function CreateAgentSection() {
       await createAgentMutation({
         agentName: agentName, // Match your schema
         agentId: agentId,
-        userId: userDetail._id,
+        userId: userDetail._id as Id<'userTable'>,
         published: false,
         createdAt: Date.now(),
       });
