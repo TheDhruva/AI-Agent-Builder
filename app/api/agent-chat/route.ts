@@ -54,14 +54,29 @@ export async function POST(request: NextRequest) {
             handoffs: createdAgents
         });
 
-        // 4. Execute and Stream
+        // 4. Run with Streaming
         const result = await run(masterAgent, input, { stream: true });
-
-        // CLEAN FIX: Convert string stream to Uint8Array stream for Next.js response
         const textStream = result.toTextStream();
-        const byteStream = textStream.pipeThrough(new TextEncoderStream());
 
-        return new Response(byteStream, {
+        // 5. Build-Safe Encoding Logic: Use an async generator
+        const encoder = new TextEncoder();
+        
+        async function* makeByteStream() {
+            // Cast to any to handle environments where ReadableStream isn't an async iterable
+            const reader = (textStream as any).getReader();
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    if (value) yield encoder.encode(value);
+                }
+            } finally {
+                reader.releaseLock();
+            }
+        }
+
+        // Return a standard Response using the generator
+        return new Response(makeByteStream() as any, {
             headers: {
                 'Content-Type': 'text/event-stream; charset=utf-8',
                 'Cache-Control': 'no-cache',
