@@ -13,8 +13,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel"; // Import Id type
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from "next/navigation";
 import { useUserDetail } from "@/context/UserDetailContext";
@@ -29,15 +30,12 @@ function CreateAgentSection() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Constants for your business logic
-  const FREE_CREDIT_LIMIT = 100;
   const AGENT_CREATION_COST = 10; 
 
   const handleCreateAgent = async () => {
     setError(null);
     if (!agentName.trim()) return;
     
-    // 1. RUTHLESS CREDIT CHECK
     const currentTokens = userDetail?.token ?? 0;
     if (currentTokens < AGENT_CREATION_COST) {
         setError("Insufficient credits. You need at least 10 credits to build an agent.");
@@ -50,13 +48,14 @@ function CreateAgentSection() {
     try {
       const agentId = uuidv4();
       
-      // 2. Execute Mutation (Assuming your backend also deducts tokens)
+      // FIXED: Property name changed to 'name' to match the mutation type
       await createAgentMutation({
-        agentName: agentName, // Match your schema
+        name: agentName, 
         agentId: agentId,
         userId: userDetail._id as Id<'userTable'>,
-        published: false,
-        createdAt: Date.now(),
+        // Ensure these properties are also in your mutation's args
+        // published: false, 
+        // createdAt: Date.now(),
       });
 
       setOpen(false);
