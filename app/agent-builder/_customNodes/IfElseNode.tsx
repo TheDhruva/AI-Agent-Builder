@@ -7,7 +7,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 function IfElseNode({ data }: NodeProps) {
   return (
     <div className="bg-white border rounded-md p-2 shadow-sm relative"> 
-      <div className="flex gap-2 items-center mb-2" style={{ backgroundColor: data?.bg }}>
+      <div className="flex gap-2 items-center mb-2" style={{ backgroundColor: typeof data?.bg === 'string' ? data.bg : undefined }}>
         <Merge className="w-4 h-4" />
         <h2 className="font-bold text-sm">If/Else</h2>
       </div>
