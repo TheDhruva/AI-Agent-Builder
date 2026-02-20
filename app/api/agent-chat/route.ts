@@ -5,9 +5,9 @@ import { openai } from "@/config/OpenAi";
 
 export async function POST(request: NextRequest) {
     try {
-        const { input, tools, agents, conversationId, agentName } = await request.json();
+        const { input, tools = [], agents = [], agentName } = await request.json();
 
-        // 1. Map Tools correctly using the factory
+        // 1. Map Tools
         const generatedTools = tools.map((t: any) => {
             const shape: Record<string, any> = {};
             Object.entries(t.parameters || {}).forEach(([key, value]: [string, any]) => {
@@ -22,14 +22,12 @@ export async function POST(request: NextRequest) {
                 parameters: z.object(shape),
                 execute: async (params: any) => {
                     let url = t.url;
-                    // Replace path params {id}
                     for (const key in params) {
                         url = url.replace(`{${key}}`, encodeURIComponent(params[key]));
                     }
                     if (t.includeApiKey && t.apiKey) {
                         url += (url.includes('?') ? '&' : '?') + `api_key=${t.apiKey}`;
                     }
-
                     const response = await fetch(url, {
                         method: t.method || "GET",
                         headers: { "Content-Type": "application/json" },
@@ -45,46 +43,31 @@ export async function POST(request: NextRequest) {
             return new Agent({
                 name: config.name,
                 instructions: config.instruction,
-                tools: generatedTools // Worker agents get the tools
+                tools: generatedTools
             });
         });
 
-        // 3. Create Master Router Agent
+        // 3. Create Master Agent
         const masterAgent = new Agent({
             name: agentName || "Supervisor",
             instructions: "Analyze the user query and hand off the task to the most appropriate agent. If no specific agent fits, answer yourself.",
-            handoffs: createdAgents // This enables the routing logic
+            handoffs: createdAgents
         });
 
-        // 4. Run with Streaming
-        const result = await run(masterAgent, input, {
-            // conversationId: conversationId, // Enable if using persistent storage
-            stream: true
+        // 4. Execute and Stream
+        const result = await run(masterAgent, input, { stream: true });
+
+        // CLEAN FIX: Convert string stream to Uint8Array stream for Next.js response
+        const textStream = result.toTextStream();
+        const byteStream = textStream.pipeThrough(new TextEncoderStream());
+
+        return new Response(byteStream, {
+            headers: {
+                'Content-Type': 'text/event-stream; charset=utf-8',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            },
         });
-
-        // Convert the execution result into a readable text stream
-
-
-                const stream = result.toTextStream();
-                async function* encodeStream(reader: ReadableStreamDefaultReader<string>) {
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        yield new TextEncoder().encode(value);
-                    }
-                }
-                const utf8Stream = new ReadableStream<Uint8Array>({
-                    async pull(controller) {
-                        const reader = stream.getReader();
-                        for await (const chunk of encodeStream(reader)) {
-                            controller.enqueue(chunk);
-                        }
-                        controller.close();
-                    }
-                });
-                return new Response(utf8Stream, {
-                    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-                });
 
     } catch (error: any) {
         console.error("Chat API Error:", error);
@@ -95,19 +78,14 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
     try {
-        // 1. Create the conversation using the OpenAI SDK
         const conversation = await openai.conversations.create();
-
-        // 2. Return the full conversation object or just the ID
         return NextResponse.json({
             conversationId: conversation.id,
             status: "created"
         });
-
     } catch (error: any) {
-        console.error("Failed to create conversation:", error);
         return NextResponse.json(
             { error: "Conversation initialization failed", details: error.message },
             { status: 500 }
