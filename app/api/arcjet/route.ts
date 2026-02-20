@@ -1,11 +1,21 @@
 import { isSpoofedBot } from "@arcjet/inspect";
 import { NextResponse } from "next/server";
 import { aj } from "@/config/Arcjet";
+import { auth } from "@clerk/nextjs/server"; // Recommended for userId
 
 export async function GET(req: Request) {
-  const decision = await aj.protect(req, { requested: 5 }); // Deduct 5 tokens from the bucket
+  // 1. Get the User ID (e.g., from Clerk) or fallback to IP
+  const { userId } = await auth();
+  
+  // 2. Execute Arcjet Protection with the required userId
+  const decision = await aj.protect(req, { 
+    requested: 5, 
+    userId: userId || "anonymous" // FIX: Added required userId
+  });
+
   console.log("Arcjet decision", decision);
 
+  // 3. Handle Denials
   if (decision.isDenied()) {
     if (decision.reason.isRateLimit()) {
       return NextResponse.json(
@@ -25,24 +35,18 @@ export async function GET(req: Request) {
     }
   }
 
-  // Requests from hosting IPs are likely from bots, so they can usually be
-  // blocked. However, consider your use case - if this is an API endpoint
-  // then hosting IPs might be legitimate.
-  // https://docs.arcjet.com/blueprints/vpn-proxy-detection
+  // 4. IP Analysis
   if (decision.ip.isHosting()) {
     return NextResponse.json(
-      { error: "Forbidden", reason: decision.reason },
+      { error: "Forbidden", reason: "Hosting IPs blocked" },
       { status: 403 },
     );
   }
 
-  // Paid Arcjet accounts include additional verification checks using IP data.
-  // Verification isn't always possible, so we recommend checking the decision
-  // separately.
-  // https://docs.arcjet.com/bot-protection/reference#bot-verification
+  // 5. Bot Verification
   if (decision.results.some(isSpoofedBot)) {
     return NextResponse.json(
-      { error: "Forbidden", reason: decision.reason },
+      { error: "Forbidden", reason: "Spoofed bot detected" },
       { status: 403 },
     );
   }
