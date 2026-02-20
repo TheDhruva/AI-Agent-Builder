@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchQuery, fetchMutation } from "convex/nextjs";
 import { openai } from "@/config/OpenAi"; 
 import { api } from "@/convex/_generated/api";
-import { Agent, run } from "@openai/agents"; // Added for execution
+import { Agent, run, tool } from "@openai/agents"; 
+import { z } from "zod";
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Parse Request
         const { agentId, userId, command } = await request.json();
 
         if (!agentId || !command) {
             return NextResponse.json({ error: "Missing agentId or command" }, { status: 400 });
         }
 
-        // 2. Fetch Agent Config
+        // 1. Fetch Agent Config from Convex
         const agentDetail = await fetchQuery(api.agents.GetAgentById, { 
             agentId: agentId 
         });
@@ -22,10 +22,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Agent not found" }, { status: 404 });
         }
 
-        // 3. Resolve or Create Conversation
+        // 2. Resolve or Create Conversation
         let conversationId = null;
-        
-        // Ensure you pass userId from the client to track who is talking
         const conversationRecord = await fetchQuery(api.conversation.GetConversationById, {
             agentId: agentDetail._id,
             userId: userId || "anonymous" 
@@ -34,11 +32,9 @@ export async function POST(request: NextRequest) {
         if (conversationRecord?.conversationId) {
             conversationId = conversationRecord.conversationId;
         } else {
-            // Create fresh thread
-            const newConversation = await openai.conversations.create({});
+            const newConversation = await (openai as any).conversations.create({});
             conversationId = newConversation.id;
 
-            // CRITICAL: Save it back to Convex
             await fetchMutation(api.conversation.CreateConversation, {
                 agentId: agentDetail._id,
                 userId: userId || "anonymous",
@@ -46,24 +42,53 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // 4. Rebuild and Execute Agent
-        // (Assuming you map tools properly here as done in previous steps)
-        const agent = new Agent({
-            name: agentDetail.agentToolConfig?.primaryAgentName || "Agent",
-            instructions: agentDetail.agentToolConfig?.systemPrompt || "You are a helpful assistant.",
-            tools: [] // Insert your mapped tools here
+        // 3. Map Tools (Crucial: Agents need their tools to function)
+        const config = agentDetail.agentToolConfig || {};
+        const toolsConfig = config.tools || [];
+        
+        const generatedTools = toolsConfig.map((t: any) => {
+            const shape: Record<string, any> = {};
+            Object.entries(t.parameters || {}).forEach(([key, value]: [string, any]) => {
+                shape[key] = value.type === "number" ? z.number() : z.string();
+                if (value.description) shape[key] = shape[key].describe(value.description);
+            });
+
+            return tool({
+                name: t.name,
+                description: t.description,
+                parameters: z.object(shape),
+                execute: async (params: any) => {
+                    let url = t.url;
+                    for (const key in params) {
+                        url = url.replace(`{${key}}`, encodeURIComponent(params[key]));
+                    }
+                    const response = await fetch(url, {
+                        method: t.method || "GET",
+                        headers: { "Content-Type": "application/json" },
+                        body: t.method !== "GET" ? JSON.stringify(params) : undefined
+                    });
+                    return await response.json();
+                }
+            });
         });
 
-        // Run the agent with the persisted conversation ID
+        // 4. Build Agent
+        const agent = new Agent({
+            name: config.primaryAgentName || "Agent",
+            instructions: config.systemPrompt || "You are a helpful assistant.",
+            tools: generatedTools 
+        });
+
+        // 5. Execute Agent
         const result = await run(agent, command, {
             conversationId: conversationId
         });
 
-        // 5. Return Output
+        // FIXED: Accessing 'text' instead of 'content' to resolve Type Error
         return NextResponse.json({ 
             success: true,
             conversationId: conversationId,
-            output: result.output ?? result.content ?? result 
+            output: (result as any).text || (result as any).output || "No response generated."
         }, { status: 200 });
 
     } catch (error: any) {
