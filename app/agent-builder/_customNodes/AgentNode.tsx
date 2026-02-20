@@ -17,7 +17,7 @@ function AgentNode({ data }: NodeProps) {
       {/* Icon Container - Uses data.bg if available, defaults to purple */}
       <div 
         className="flex items-center justify-center rounded-lg h-10 w-10 transition-colors text-purple-600"
-        style={{ backgroundColor: data.bg || '#f3e8ff' }} 
+        style={{ backgroundColor: typeof data.bg === 'string' ? data.bg : '#f3e8ff' }}
       >
         <Bot size={18} />
       </div>
