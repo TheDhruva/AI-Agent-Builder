@@ -63,9 +63,10 @@ export async function POST(request: NextRequest) {
         });
 
         // Convert the execution result into a readable text stream
-        const stream = result.toTextStream();
 
-        return new Response(stream, {
+        const stream = result.toTextStream();
+        const utf8Stream = stream.pipeThrough(new TextEncoderStream());
+        return new Response(utf8Stream, {
             headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
 
