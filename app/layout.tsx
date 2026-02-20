@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body className={outfit.className}>
           <ConvexClientProvider>
             {/* 3. Wrap EVERYTHING in your Data Provider */}

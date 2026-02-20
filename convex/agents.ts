@@ -22,19 +22,17 @@ export const CreateAgent = mutation({
   },
 });
 
-// FAST LOOKUP: Uses Index instead of Filter
 export const GetAgentById = query({
   args: { agentId: v.string() },
   handler: async (ctx, args) => {
     const result = await ctx.db
       .query('agentTable')
       .withIndex("by_agentId", (q) => q.eq("agentId", args.agentId))
-      .first(); // .first() is cleaner than .collect()[0]
+      .first();
     return result;
   }
 });
 
-// List all agents for a given user (used in Dashboard -> MyAgents)
 export const GetUserAgents = query({
   args: {
     userId: v.id('userTable'),
@@ -44,7 +42,6 @@ export const GetUserAgents = query({
       .query('agentTable')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .collect();
-
     return agents;
   },
 });
@@ -59,6 +56,20 @@ export const UpdateAgentDetail = mutation({
     await ctx.db.patch(args.id, {
       nodes: args.nodes,
       edges: args.edges,
+    });
+    return { success: true };
+  }
+});
+
+// FIXED: Corrected syntax and handler logic
+export const UpdateAgentToolConfig = mutation({
+  args: {
+    id: v.id('agentTable'),
+    agentToolConfig: v.any(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      agentToolConfig: args.agentToolConfig
     });
     return { success: true };
   }

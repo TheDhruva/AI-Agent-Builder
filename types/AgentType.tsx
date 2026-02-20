@@ -10,5 +10,6 @@ export type Agent = {
     edges?: any;
     published: boolean;
     createdAt: number;            // Your manual timestamp
-    config: any;          // Typed config instead of 'any'
+    config: any; 
+    agentToolConfig?: any;         // Typed config instead of 'any'
 }
